@@ -1,0 +1,21 @@
+name: Run Tests
+
+on:
+  workflow_call:
+    inputs:
+      container-image:
+        required: true
+        type: string
+      test-command:
+        required: true
+        type: string
+
+jobs:
+  test:
+    runs-on: self-hosted
+    container:
+      image: ${{ inputs.container-image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: ${{ inputs.test-command }}
