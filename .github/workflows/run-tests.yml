@@ -13,9 +13,7 @@ on:
 jobs:
   test:
     runs-on: self-hosted
-    container:
-      image: ${{ inputs.container-image }}
     steps:
       - uses: actions/checkout@v4
       - name: Run tests
-        run: ${{ inputs.test-command }}
+        run: docker run --rm -v "${{ github.workspace }}:/workspace" -w /workspace ${{ inputs.container-image }} sh -c "${{ inputs.test-command }}"
