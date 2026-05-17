@@ -15,8 +15,22 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-      - name: Run tests
+      - name: Configurar Maven settings para GitHub Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
-        run: docker run --rm -v "${{ github.workspace }}:/workspace" -e "GITHUB_TOKEN=$GITHUB_TOKEN" -e "GITHUB_ACTOR=$GITHUB_ACTOR" -v "/tmp/npm-cache:/root/.npm" -w /workspace ${{ inputs.container-image }} sh -c "${{ inputs.test-command }}"
+        run: |
+          mkdir -p "${{ github.workspace }}/.mvn"
+          cat > "${{ github.workspace }}/.mvn/ci-settings.xml" <<EOF
+          <settings>
+            <servers>
+              <server>
+                <id>github</id>
+                <username>$GITHUB_ACTOR</username>
+                <password>$GITHUB_TOKEN</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+      - name: Run tests
+        run: docker run --rm -v "${{ github.workspace }}:/workspace" -v "/tmp/npm-cache:/root/.npm" -w /workspace ${{ inputs.container-image }} sh -c "${{ inputs.test-command }} -s /workspace/.mvn/ci-settings.xml"
