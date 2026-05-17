@@ -16,4 +16,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run tests
-        run: docker run --rm -v "${{ github.workspace }}:/workspace" -v "/tmp/npm-cache:/root/.npm" -w /workspace ${{ inputs.container-image }} sh -c "${{ inputs.test-command }}"
+        run: docker run --rm -v "${{ github.workspace }}:/workspace" -v "$HOME/.m2:/root/.m2:ro" -v "/tmp/npm-cache:/root/.npm" -w /workspace ${{ inputs.container-image }} sh -c "${{ inputs.test-command }}"
