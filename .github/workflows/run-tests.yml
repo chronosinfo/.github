@@ -34,3 +34,37 @@ jobs:
           EOF
       - name: Run tests
         run: docker run --rm -v "${{ github.workspace }}:/workspace" -v "/tmp/npm-cache:/root/.npm" -w /workspace ${{ inputs.container-image }} sh -c "${{ inputs.test-command }} -s /workspace/.mvn/ci-settings.xml"
+      - name: Publicar resultados dos testes
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: '**/target/surefire-reports/TEST-*.xml'
+          fail_on_failure: true
+          include_passed: true
+          detailed_summary: true
+          check_name: Testes Unitários
+      - name: Resumo de cobertura JaCoCo
+        if: always()
+        run: |
+          REPORT="${{ github.workspace }}/target/site/jacoco/jacoco.xml"
+          if [ ! -f "$REPORT" ]; then
+            echo "jacoco.xml não encontrado — cobertura não disponível" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          cat > /tmp/jacoco_summary.py << 'PYEOF'
+          import xml.etree.ElementTree as ET, sys
+          tree = ET.parse(sys.argv[1])
+          root = tree.getroot()
+          print('### Cobertura JaCoCo\n')
+          print('| Métrica | Coberto | Total | % |')
+          print('|---------|---------|-------|---|')
+          for counter in root.findall('counter'):
+              ctype = counter.get('type')
+              missed = int(counter.get('missed', 0))
+              covered = int(counter.get('covered', 0))
+              total = missed + covered
+              pct = round(covered / total * 100, 1) if total > 0 else 0
+              status = '✅' if pct >= 90 else '⚠️' if pct >= 70 else '❌'
+              print(f'| {ctype} | {covered} | {total} | {status} {pct}% |')
+          PYEOF
+          python3 /tmp/jacoco_summary.py "$REPORT" >> "$GITHUB_STEP_SUMMARY"
