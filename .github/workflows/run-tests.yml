@@ -9,6 +9,10 @@ on:
       test-command:
         required: true
         type: string
+      maven-settings:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -16,12 +20,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configurar Maven settings para GitHub Packages
+        if: ${{ inputs.maven-settings }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
         run: |
           mkdir -p "${{ github.workspace }}/.mvn"
-          cat > "${{ github.workspace }}/.mvn/ci-settings.xml" <<EOF
+          cat > "${{ github.workspace }}/.mvn/ci-settings.xml" <<XMLEOF
           <settings>
             <servers>
               <server>
@@ -31,12 +36,12 @@ jobs:
               </server>
             </servers>
           </settings>
-          EOF
+          XMLEOF
       - name: Run tests
-        run: docker run --rm -v "${{ github.workspace }}:/workspace" -v "/tmp/npm-cache:/root/.npm" -w /workspace ${{ inputs.container-image }} sh -c "${{ inputs.test-command }} -s /workspace/.mvn/ci-settings.xml"
+        run: docker run --rm -v "${{ github.workspace }}:/workspace" -v "/tmp/npm-cache:/root/.npm" -w /workspace ${{ inputs.container-image }} sh -c "${{ inputs.test-command }}"
       - name: Publicar resultados dos testes
         uses: mikepenz/action-junit-report@v4
-        if: always()
+        if: ${{ always() && inputs.maven-settings }}
         with:
           report_paths: '**/target/surefire-reports/TEST-*.xml'
           fail_on_failure: true
@@ -44,7 +49,7 @@ jobs:
           detailed_summary: true
           check_name: Testes Unitários
       - name: Resumo de cobertura JaCoCo
-        if: always()
+        if: ${{ always() && inputs.maven-settings }}
         run: |
           REPORT="${{ github.workspace }}/target/site/jacoco/jacoco.xml"
           if [ ! -f "$REPORT" ]; then
