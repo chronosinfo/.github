@@ -1,4 +1,4 @@
-name: Run Tests
+name: Run Maven Tests
 
 on:
   workflow_call:
@@ -23,6 +23,24 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configurar Maven settings
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: |
+          mkdir -p "${{ github.workspace }}/.mvn"
+          cat > "${{ github.workspace }}/.mvn/ci-settings.xml" <<XMLEOF
+          <settings>
+            <servers>
+              <server>
+                <id>github</id>
+                <username>$GITHUB_ACTOR</username>
+                <password>$GITHUB_TOKEN</password>
+              </server>
+            </servers>
+          </settings>
+          XMLEOF
 
       - name: Run tests
         run: |
