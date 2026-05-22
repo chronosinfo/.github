@@ -24,15 +24,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          clean: false
+          path: src
 
       - name: Configurar Maven settings
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
         run: |
-          mkdir -p "${{ github.workspace }}/.mvn"
-          cat > "${{ github.workspace }}/.mvn/ci-settings.xml" <<XMLEOF
+          mkdir -p "${{ github.workspace }}/src/.mvn"
+          cat > "${{ github.workspace }}/src/.mvn/ci-settings.xml" <<XMLEOF
           <settings>
             <servers>
               <server>
@@ -47,7 +47,7 @@ jobs:
       - name: Run tests
         run: |
           docker run --rm --user "$(id -u):$(id -g)" \
-            -v "${{ github.workspace }}:/workspace" \
+            -v "${{ github.workspace }}/src:/workspace" \
             -w /workspace \
             ${{ inputs.container-image }} \
             sh -c "${{ inputs.test-command }}"
