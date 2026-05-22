@@ -64,10 +64,6 @@ jobs:
           report_paths: ${{ inputs.report-paths }}
           check_name: ${{ inputs.check-name }}
 
-      - name: Debug JaCoCo
-        if: ${{ always() && inputs.jacoco-report }}
-        run: find "${{ github.workspace }}/src/target" -name "jacoco*" 2>/dev/null || echo "nenhum arquivo jacoco encontrado"
-
       - name: Resumo de cobertura JaCoCo
         if: ${{ always() && inputs.jacoco-report }}
         run: |
