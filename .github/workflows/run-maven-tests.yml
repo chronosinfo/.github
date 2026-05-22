@@ -22,10 +22,9 @@ jobs:
   test:
     runs-on: self-hosted
     steps:
-      - name: Limpar artefatos de build anteriores
-        run: docker run --rm -v "${{ github.workspace }}:/workspace" alpine rm -rf /workspace/target
-
       - uses: actions/checkout@v4
+        with:
+          clean: false
 
       - name: Configurar Maven settings
         env:
