@@ -3,36 +3,149 @@ name: Run Tests
 on:
   workflow_call:
     inputs:
+      node-version:
+        description: Node.js version to install for the job
+        required: false
+        type: string
+        default: '20'
       container-image:
-        required: true
+        description: Optional container image to run the job in
+        required: false
         type: string
+        default: ''
+      working-directory:
+        description: Directory that contains the project under test
+        required: false
+        type: string
+        default: '.'
+      install-command:
+        description: Optional dependency installation command
+        required: false
+        type: string
+        default: ''
       test-command:
+        description: Command used to execute the repository tests
         required: true
         type: string
+      enable-cache:
+        description: Enable dependency caching through setup-node
+        required: false
+        type: boolean
+        default: true
+      package-manager:
+        description: Package manager name used for setup-node cache
+        required: false
+        type: string
+        default: 'npm'
+      cache-dependency-path:
+        description: Optional dependency lockfile or glob for dependency caching
+        required: false
+        type: string
+        default: ''
       report-paths:
+        description: Optional test report path(s) for JUnit publishing
         required: false
         type: string
         default: ''
       check-name:
+        description: Optional check name used when publishing JUnit reports
         required: false
         type: string
         default: 'Tests'
 
 jobs:
   test:
-    runs-on: self-hosted
+    name: Run tests
+    if: ${{ inputs.container-image == '' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate inputs
+        run: |
+          if [ ! -d "${{ inputs.working-directory }}" ]; then
+            echo "Working directory '${{ inputs.working-directory }}' does not exist." >&2
+            exit 1
+          fi
+
+          case "${{ inputs.package-manager }}" in
+            npm|yarn|pnpm|'')
+              ;;
+            *)
+              echo "Unsupported package manager '${{ inputs.package-manager }}'. Use npm, yarn, or pnpm." >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ inputs.enable-cache && inputs.package-manager || '' }}
+          cache-dependency-path: ${{ inputs.cache-dependency-path }}
+
+      - name: Install dependencies
+        if: ${{ inputs.install-command != '' }}
+        run: ${{ inputs.install-command }}
 
       - name: Run tests
-        run: |
-          docker run --rm --user "$(id -u):$(id -g)" \
-            -v "${{ github.workspace }}:/workspace" \
-            -w /workspace \
-            ${{ inputs.container-image }} \
-            sh -c "${{ inputs.test-command }}"
+        run: ${{ inputs.test-command }}
 
-      - name: Publicar resultados
+      - name: Publish results
+        uses: mikepenz/action-junit-report@v4
+        if: ${{ always() && inputs.report-paths != '' }}
+        with:
+          report_paths: ${{ inputs.report-paths }}
+          check_name: ${{ inputs.check-name }}
+
+  test-in-container:
+    name: Run tests
+    if: ${{ inputs.container-image != '' }}
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ inputs.container-image }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate inputs
+        run: |
+          if [ ! -d "${{ inputs.working-directory }}" ]; then
+            echo "Working directory '${{ inputs.working-directory }}' does not exist." >&2
+            exit 1
+          fi
+
+          case "${{ inputs.package-manager }}" in
+            npm|yarn|pnpm|'')
+              ;;
+            *)
+              echo "Unsupported package manager '${{ inputs.package-manager }}'. Use npm, yarn, or pnpm." >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ inputs.enable-cache && inputs.package-manager || '' }}
+          cache-dependency-path: ${{ inputs.cache-dependency-path }}
+
+      - name: Install dependencies
+        if: ${{ inputs.install-command != '' }}
+        run: ${{ inputs.install-command }}
+
+      - name: Run tests
+        run: ${{ inputs.test-command }}
+
+      - name: Publish results
         uses: mikepenz/action-junit-report@v4
         if: ${{ always() && inputs.report-paths != '' }}
         with:
